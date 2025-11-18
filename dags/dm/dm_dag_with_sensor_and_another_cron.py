@@ -100,8 +100,8 @@ with DAG(
         task_id="start",
     )
 
-    sensor_ods = ExternalTaskSensor(
-        task_id="sensor_ods",
+    sensor_ods_dag_users_to_dwh_pg = ExternalTaskSensor(
+        task_id="sensor_ods_dag_users_to_dwh_pg",
         external_dag_id="ods_dag_users_to_dwh_pg",
         mode="reschedule",
         poke_interval=60,
@@ -109,8 +109,8 @@ with DAG(
         # execution_delta=pendulum.duration(hours=1),
     )
 
-    load_ods_layer = PythonOperator(
-        task_id="load_ods_layer",
+    load_dm_layer = PythonOperator(
+        task_id="load_dm_layer",
         python_callable=load_dm_layer,
     )
 
@@ -118,4 +118,4 @@ with DAG(
         task_id="end",
     )
 
-    start >> sensor_ods >> load_ods_layer >> end
+    start >> sensor_ods_dag_users_to_dwh_pg >> load_dm_layer >> end
