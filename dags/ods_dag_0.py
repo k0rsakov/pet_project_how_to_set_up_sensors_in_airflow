@@ -10,7 +10,6 @@ import pandas as pd
 
 from airflow import DAG
 
-# from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 
@@ -47,13 +46,10 @@ def load_ods_layer(**context) -> None:
     fake = Faker(locale="ru_RU")
 
     list_of_dict = []
-    for _ in range(randint(a=1, b=1_000)):
+    for _ in range(randint(a=1, b=100)):
         dict_ = {
             "id": uuid.uuid4(),
-            "created_at": fake.date_time_ad(
-                start_datetime=datetime.date(year=2024, month=1, day=1),
-                end_datetime=datetime.date(year=2025, month=1, day=1),
-            ),
+            "created_at": context.get("data_interval_start"),
             "first_name": fake.first_name(),
             "last_name": fake.last_name(),
             "middle_name": fake.middle_name(),
@@ -70,16 +66,23 @@ def load_ods_layer(**context) -> None:
         """
         INSTALL postgres;
         LOAD postgres;
-        
-        ATTACH '' AS postgres_db (TYPE postgres);
-        
         ATTACH 'dbname=postgres user=postgres host=dwh password=postgres' AS db (TYPE postgres);
-        CREATE SCHEMA IF NOT EXISTS ods;
+
+        CREATE SCHEMA IF NOT EXISTS db.ods;
         
-         
+        CREATE TABLE IF NOT EXISTS db.ods.ods_user
+        (
+            id UUID PRIMARY KEY,
+            created_at TIMESTAMP,
+            first_name VARCHAR,
+            last_name VARCHAR,
+            middle_name VARCHAR,
+            email VARCHAR
+        );
+        
+        INSERT INTO db.ods.ods_user SELECT * FROM df; 
         """
     )
-
 
     logging.info("ODS layer loaded success ✅.")
 
