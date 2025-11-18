@@ -3,17 +3,19 @@ import logging
 import pendulum
 import requests
 
+
 BASE_URL = "http://0.0.0.0:8080/api/v1"
 DAG_ID = "ods_dag_without_catchup"
 AUTH = ("airflow", "airflow")  # подставь свои логин/пароль, если другие
 
-START_DATE = pendulum.datetime(2025, 1, 1, 10, 0, tz="UTC")
-END_DATE = pendulum.datetime(2025, 11, 17, 10, 0, tz="UTC")
+START_DATE = pendulum.datetime(year=2025, month=1, day=1, hour=10, minute=0, tz="UTC")
+END_DATE = pendulum.datetime(year=2025, month=11, day=17, hour=10, minute=0, tz="UTC")
 
 
 def create_dag_run(logical_date: pendulum.DateTime) -> str:
     """
     Создаёт DAGRun на указанную дату.
+
     Возвращает dag_run_id.
 
     Важно: НЕ использовать префикс backfill__, он зарезервирован Airflow.
@@ -34,7 +36,7 @@ def create_dag_run(logical_date: pendulum.DateTime) -> str:
     logging.info("RESPONSE: %s", resp.text.strip())
 
     # 409 — такой dag_run_id уже есть, считаем нормальным и идём дальше
-    if resp.status_code == 409:
+    if resp.status_code == 409: # noqa: PLR2004
         logging.info("DagRun %s уже существует, пропускаю создание", dag_run_id)
         return dag_run_id
 
@@ -43,9 +45,7 @@ def create_dag_run(logical_date: pendulum.DateTime) -> str:
 
 
 def mark_dag_run_success(dag_run_id: str) -> None:
-    """
-    Ставит DAGRun в состояние success через PATCH /dagRuns/{dag_run_id}.
-    """
+    """Ставит DAGRun в состояние success через PATCH /dagRuns/{dag_run_id}."""
     url = f"{BASE_URL}/dags/{DAG_ID}/dagRuns/{dag_run_id}"
     payload = {"state": "success"}
 
@@ -59,9 +59,10 @@ def mark_dag_run_success(dag_run_id: str) -> None:
     resp.raise_for_status()
 
 
-def iter_dates(start: pendulum.DateTime, end: pendulum.DateTime):
+def iter_dates(start: pendulum.DateTime, end: pendulum.DateTime) -> pendulum.DateTime:
     """
     Простейший генератор дат: шаг 1 день.
+
     У нас cron '0 10 * * *', так что этого достаточно.
     """
     current = start
@@ -70,7 +71,12 @@ def iter_dates(start: pendulum.DateTime, end: pendulum.DateTime):
         current = current.add(days=1)
 
 
-def main():
+def main() -> None:
+    """
+    Основная функция скрипта.
+
+    :return: Создаёт DAGRun'ы и помечает их успешными.
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",

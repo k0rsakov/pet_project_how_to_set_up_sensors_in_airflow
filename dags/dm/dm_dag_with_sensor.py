@@ -1,13 +1,14 @@
 import logging
 
+import duckdb
 import pendulum
 
 from airflow import DAG
-
-from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-import duckdb
+from airflow.sensors.external_task import ExternalTaskSensor
+
+
 # Конфигурация DAG
 OWNER = "i.korsakov"
 DAG_ID = "dm_dag_with_sensor"
@@ -29,6 +30,7 @@ args = {
     "depends_on_past": True,
 }
 
+
 def load_dm_layer(**context) -> None:
     """
     Печатает контекст DAG.
@@ -49,9 +51,9 @@ def load_dm_layer(**context) -> None:
             created_at TIMESTAMP PRIMARY KEY,
             count_registered_users BIGINT
         );
-        
+
         DROP TABLE IF EXISTS db.stg.stg_count_registered_users;
-        
+
         CREATE TABLE db.stg.stg_count_registered_users AS
         SELECT
             DATE_TRUNC('day', created_at) AS created_at,
@@ -61,17 +63,17 @@ def load_dm_layer(**context) -> None:
         WHERE
             DATE_TRUNC('day', created_at) = '{context.get("data_interval_start").format("YYYY-MM-DD")}'
         GROUP BY 1;
-            
-        DELETE FROM db.dm.dm_count_registered_users 
+
+        DELETE FROM db.dm.dm_count_registered_users
         WHERE created_at IN (SELECT created_at FROM db.stg.stg_count_registered_users);
-        
+
         INSERT INTO db.dm.dm_count_registered_users
         SELECT
             created_at,
             count_registered_users
         FROM
             db.stg.stg_count_registered_users;
-            
+
         DROP TABLE db.stg.stg_count_registered_users;
         """
 
@@ -80,6 +82,7 @@ def load_dm_layer(**context) -> None:
     duckdb.sql(query=query)
 
     logging.info("DM layer loaded success ✅.")
+
 
 with DAG(
     dag_id=DAG_ID,

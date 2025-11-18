@@ -3,11 +3,11 @@ import logging
 import pendulum
 
 from airflow import DAG
-
-from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-import duckdb
+from airflow.sensors.external_task import ExternalTaskSensor
+
+
 # Конфигурация DAG
 OWNER = "i.korsakov"
 DAG_ID = "dm_dag_with_sensor_on_both_ods_dag"
@@ -29,15 +29,16 @@ args = {
     "depends_on_past": True,
 }
 
-def load_dm_layer(**context) -> None:
-    """
-    Печатает контекст DAG.
 
-    @param context: Контекст DAG.
+def load_dm_layer() -> None:
+    """
+    Пустышка.
+
     @return: Ничего не возвращает.
     """
 
     logging.info("DM layer loaded success ✅.")
+
 
 with DAG(
     dag_id=DAG_ID,

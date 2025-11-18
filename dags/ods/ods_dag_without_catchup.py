@@ -1,16 +1,12 @@
 import logging
 import time
-import duckdb
+
 import pendulum
-import uuid
-from random import randint
-from faker import Faker
-import pandas as pd
 
 from airflow import DAG
-
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+
 
 # Конфигурация DAG
 OWNER = "i.korsakov"
@@ -33,16 +29,17 @@ args = {
     "depends_on_past": True,
 }
 
-def load_ods_layer(**context) -> None:
-    """
-    Печатает контекст DAG.
 
-    @param context: Контекст DAG.
+def load_ods_layer() -> None:
+    """
+    Пустышка.
+
     @return: Ничего не возвращает.
     """
     time.sleep(10)
 
     logging.info("ODS layer loaded success ✅.")
+
 
 with DAG(
     dag_id=DAG_ID,

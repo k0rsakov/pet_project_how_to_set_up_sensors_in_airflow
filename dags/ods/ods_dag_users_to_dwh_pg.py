@@ -1,16 +1,18 @@
 import logging
 import time
-import duckdb
-import pendulum
 import uuid
+
 from random import randint
-from faker import Faker
+
+import duckdb
 import pandas as pd
+import pendulum
 
 from airflow import DAG
-
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from faker import Faker
+
 
 # Конфигурация DAG
 OWNER = "i.korsakov"
@@ -32,6 +34,7 @@ args = {
     "retry_delay": pendulum.duration(hours=1),
     "depends_on_past": True,
 }
+
 
 def load_ods_layer(**context) -> None:
     """
@@ -67,7 +70,7 @@ def load_ods_layer(**context) -> None:
         ATTACH 'dbname=postgres user=postgres host=dwh password=postgres' AS db (TYPE postgres);
 
         CREATE SCHEMA IF NOT EXISTS db.ods;
-        
+
         CREATE TABLE IF NOT EXISTS db.ods.ods_user
         (
             id UUID PRIMARY KEY,
@@ -77,8 +80,8 @@ def load_ods_layer(**context) -> None:
             middle_name VARCHAR,
             email VARCHAR
         );
-        
-        INSERT INTO db.ods.ods_user SELECT * FROM df; 
+
+        INSERT INTO db.ods.ods_user SELECT * FROM df;
         """
 
     logging.info("Loading ODS layer... ⏳ with query:\n%s", query)
@@ -86,6 +89,7 @@ def load_ods_layer(**context) -> None:
     duckdb.sql(query=query)
 
     logging.info("ODS layer loaded success ✅.")
+
 
 with DAG(
     dag_id=DAG_ID,
