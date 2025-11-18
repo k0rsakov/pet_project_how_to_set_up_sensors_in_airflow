@@ -24,10 +24,11 @@ SHORT_DESCRIPTION = "SHORT DESCRIPTION"
 # https://github.com/apache/airflow/blob/343d38af380afad2b202838317a47a7b1687f14f/airflow/example_dags/tutorial.py#L39
 args = {
     "owner": OWNER,
-    "start_date": pendulum.datetime(year=2023, month=1, day=1, tz="UTC"),
+    "start_date": pendulum.datetime(year=2025, month=1, day=1, tz="UTC"),
     "catchup": True,
     "retries": 3,
     "retry_delay": pendulum.duration(hours=1),
+    "depends_on_past": True,
 }
 
 def load_dm_layer(**context) -> None:
@@ -37,8 +38,7 @@ def load_dm_layer(**context) -> None:
     @param context: Контекст DAG.
     @return: Ничего не возвращает.
     """
-    duckdb.sql(
-        """
+    query = f"""
         INSTALL postgres;
         LOAD postgres;
         ATTACH 'dbname=postgres user=postgres host=dwh password=postgres' AS db (TYPE postgres);
@@ -59,9 +59,12 @@ def load_dm_layer(**context) -> None:
             DATE_TRUNC('day', created_at) AS created_at,
             COUNT(id) AS count_registered_users
         FROM
-            db.ods.ods_users
+            db.ods.ods_user
+        WHERE
+            DATE_TRUNC('day', created_at) = '{context.get("data_interval_start").format("YYYY-MM-DD")}'
+        GROUP BY 1;
             
-        DELETE FROM db.ods.ods_users 
+        DELETE FROM db.ods.ods_user 
         WHERE created_at IN (SELECT created_at FROM db.stg.stg_count_registered_users);
         
         INSERT INTO db.dm.dm_count_registered_users
@@ -73,7 +76,10 @@ def load_dm_layer(**context) -> None:
             
         DROP TABLE db.stg.stg_count_registered_users;
         """
-    )
+
+    logging.info("Loading DM layer... ⏳ with query:\n%s", query)
+
+    duckdb.sql(query=query)
 
     logging.info("DM layer loaded success ✅.")
 
@@ -81,7 +87,7 @@ with DAG(
     dag_id=DAG_ID,
     schedule_interval="0 10 * * *",
     default_args=args,
-    tags=["ods"],
+    tags=["dm"],
     description=SHORT_DESCRIPTION,
     concurrency=1,
     max_active_tasks=1,

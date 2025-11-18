@@ -2,7 +2,6 @@ import logging
 import time
 import duckdb
 import pendulum
-import datetime
 import uuid
 from random import randint
 from faker import Faker
@@ -28,10 +27,11 @@ SHORT_DESCRIPTION = "SHORT DESCRIPTION"
 # https://github.com/apache/airflow/blob/343d38af380afad2b202838317a47a7b1687f14f/airflow/example_dags/tutorial.py#L39
 args = {
     "owner": OWNER,
-    "start_date": pendulum.datetime(year=2023, month=1, day=1, tz="UTC"),
+    "start_date": pendulum.datetime(year=2025, month=1, day=1, tz="UTC"),
     "catchup": True,
     "retries": 3,
     "retry_delay": pendulum.duration(hours=1),
+    "depends_on_past": True,
 }
 
 def load_ods_layer(**context) -> None:
@@ -62,8 +62,7 @@ def load_ods_layer(**context) -> None:
 
     logging.info(f"💰 Размер данных: {df.shape}")
 
-    duckdb.sql(
-        """
+    query = """
         INSTALL postgres;
         LOAD postgres;
         ATTACH 'dbname=postgres user=postgres host=dwh password=postgres' AS db (TYPE postgres);
@@ -82,7 +81,10 @@ def load_ods_layer(**context) -> None:
         
         INSERT INTO db.ods.ods_user SELECT * FROM df; 
         """
-    )
+
+    logging.info("Loading ODS layer... ⏳ with query:\n%s", query)
+
+    duckdb.sql(query=query)
 
     logging.info("ODS layer loaded success ✅.")
 
