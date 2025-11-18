@@ -9,7 +9,9 @@ DAG_ID = "ods_dag_without_catchup"
 AUTH = ("airflow", "airflow")  # подставь свои логин/пароль, если другие
 
 START_DATE = pendulum.datetime(year=2025, month=1, day=1, hour=10, minute=0, tz="UTC")
-END_DATE = pendulum.datetime(year=2025, month=11, day=17, hour=10, minute=0, tz="UTC")
+END_DATE = pendulum.datetime(year=2025, month=1, day=17, hour=10, minute=0, tz="UTC")
+# END_DATE = pendulum.datetime(year=2025, month=11, day=17, hour=10, minute=0, tz="UTC")
+
 
 
 def create_dag_run(logical_date: pendulum.DateTime) -> str:
