@@ -1,5 +1,4 @@
 import logging
-import time
 
 import pendulum
 
@@ -11,7 +10,7 @@ from airflow.operators.python import PythonOperator
 import duckdb
 # Конфигурация DAG
 OWNER = "i.korsakov"
-DAG_ID = "dm_dag_with_sensor"
+DAG_ID = "dm_dag_with_sensor_on_both_ods_dag"
 
 LONG_DESCRIPTION = """
 # LONG DESCRIPTION
