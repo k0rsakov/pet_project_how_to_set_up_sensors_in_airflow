@@ -5,13 +5,13 @@ import pendulum
 
 from airflow import DAG
 
-from airflow.sensors.external_task import ExternalTaskSensor
+# from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 import duckdb
 # Конфигурация DAG
 OWNER = "i.korsakov"
-DAG_ID = "dm_dag_0_sensor"
+DAG_ID = "dm_dag_without_sensors"
 
 LONG_DESCRIPTION = """
 # LONG DESCRIPTION
@@ -84,8 +84,7 @@ def load_dm_layer(**context) -> None:
 
 with DAG(
     dag_id=DAG_ID,
-    schedule_interval="0 11 * * *",
-    # schedule_interval="0 10 * * *",
+    schedule_interval="0 10 * * *",
     default_args=args,
     tags=["dm"],
     description=SHORT_DESCRIPTION,
@@ -99,15 +98,6 @@ with DAG(
         task_id="start",
     )
 
-    sensor_ods = ExternalTaskSensor(
-        task_id="sensor_ods",
-        external_dag_id="ods_dag_0",
-        mode="reschedule",
-        poke_interval=60,
-        timeout=3600,
-        execution_delta=pendulum.duration(hours=1),
-    )
-
     load_ods_layer = PythonOperator(
         task_id="load_ods_layer",
         python_callable=load_dm_layer,
@@ -117,4 +107,4 @@ with DAG(
         task_id="end",
     )
 
-    start >> sensor_ods >> load_ods_layer >> end
+    start >> load_ods_layer >> end

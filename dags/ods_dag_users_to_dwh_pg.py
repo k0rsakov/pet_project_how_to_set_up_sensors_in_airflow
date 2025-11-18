@@ -1,17 +1,20 @@
 import logging
 import time
-
+import duckdb
 import pendulum
+import uuid
+from random import randint
+from faker import Faker
+import pandas as pd
 
 from airflow import DAG
 
-# from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-import duckdb
+
 # Конфигурация DAG
 OWNER = "i.korsakov"
-DAG_ID = "dm_dag_0"
+DAG_ID = "ods_dag_users_to_dwh_pg"
 
 LONG_DESCRIPTION = """
 # LONG DESCRIPTION
@@ -30,63 +33,65 @@ args = {
     "depends_on_past": True,
 }
 
-def load_dm_layer(**context) -> None:
+def load_ods_layer(**context) -> None:
     """
     Печатает контекст DAG.
 
     @param context: Контекст DAG.
     @return: Ничего не возвращает.
     """
-    query = f"""
+    time.sleep(0)
+
+    fake = Faker(locale="ru_RU")
+
+    list_of_dict = []
+    for _ in range(randint(a=1, b=100)):
+        dict_ = {
+            "id": uuid.uuid4(),
+            "created_at": context.get("data_interval_start"),
+            "first_name": fake.first_name(),
+            "last_name": fake.last_name(),
+            "middle_name": fake.middle_name(),
+            "email": fake.email(),
+        }
+
+        list_of_dict.append(dict_)
+
+    df = pd.DataFrame(list_of_dict)
+
+    logging.info(f"💰 Размер данных: {df.shape}")
+
+    query = """
         INSTALL postgres;
         LOAD postgres;
         ATTACH 'dbname=postgres user=postgres host=dwh password=postgres' AS db (TYPE postgres);
 
-        CREATE SCHEMA IF NOT EXISTS db.dm;
-        CREATE SCHEMA IF NOT EXISTS db.stg;
-
-        CREATE TABLE IF NOT EXISTS db.dm.dm_count_registered_users
+        CREATE SCHEMA IF NOT EXISTS db.ods;
+        
+        CREATE TABLE IF NOT EXISTS db.ods.ods_user
         (
-            created_at TIMESTAMP PRIMARY KEY,
-            count_registered_users BIGINT
+            id UUID PRIMARY KEY,
+            created_at TIMESTAMP,
+            first_name VARCHAR,
+            last_name VARCHAR,
+            middle_name VARCHAR,
+            email VARCHAR
         );
         
-        DROP TABLE IF EXISTS db.stg.stg_count_registered_users;
-        
-        CREATE TABLE db.stg.stg_count_registered_users AS
-        SELECT
-            DATE_TRUNC('day', created_at) AS created_at,
-            COUNT(id) AS count_registered_users
-        FROM
-            db.ods.ods_user
-        WHERE
-            DATE_TRUNC('day', created_at) = '{context.get("data_interval_start").format("YYYY-MM-DD")}'
-        GROUP BY 1;
-            
-        DELETE FROM db.dm.dm_count_registered_users 
-        WHERE created_at IN (SELECT created_at FROM db.stg.stg_count_registered_users);
-        
-        INSERT INTO db.dm.dm_count_registered_users
-        SELECT
-            created_at,
-            count_registered_users
-        FROM
-            db.stg.stg_count_registered_users;
-            
-        DROP TABLE db.stg.stg_count_registered_users;
+        INSERT INTO db.ods.ods_user SELECT * FROM df; 
         """
 
-    logging.info("Loading DM layer... ⏳ with query:\n%s", query)
+    logging.info("Loading ODS layer... ⏳ with query:\n%s", query)
 
     duckdb.sql(query=query)
 
-    logging.info("DM layer loaded success ✅.")
+    logging.info("ODS layer loaded success ✅.")
 
 with DAG(
     dag_id=DAG_ID,
     schedule_interval="0 10 * * *",
     default_args=args,
-    tags=["dm"],
+    tags=["ods"],
     description=SHORT_DESCRIPTION,
     concurrency=1,
     max_active_tasks=1,
@@ -100,7 +105,7 @@ with DAG(
 
     load_ods_layer = PythonOperator(
         task_id="load_ods_layer",
-        python_callable=load_dm_layer,
+        python_callable=load_ods_layer,
     )
 
     end = EmptyOperator(
