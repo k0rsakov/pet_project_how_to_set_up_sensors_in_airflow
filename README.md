@@ -1,28 +1,21 @@
 # Как настроить Sensors в Airflow
-https://www.notion.so/korsak0v/Data-Engineer-185c62fdf79345eb9da9928356884ea0
-
 
 https://www.notion.so/korsak0v/Data-Engineer-185c62fdf79345eb9da9928356884ea0
 
 ## О видео
 
-
 ## О проекте
 
+`backfill` через CLI для DAG `ods_dag_without_catchup`:
 
-```mermaid
-flowchart TD
-    A[Start sensor task] --> T1["Работа сенсора<br/>до timeout (3600 сек)"]
-    T1 -->|Успех до timeout| S[Success]
-
-    T1 -->|Timeout| C{Остались retries?}
-
-    C -->|Да| W["Ждём retry_delay (1 час)"]
-    W --> A
-
-    C -->|Нет| F[Failed]
+```bash
+docker compose exec airflow-scheduler \
+  airflow dags backfill \
+    ods_dag_without_catchup \
+    --start-date 2025-01-01 \
+    --end-date 2025-11-17 \
+    --mark-success
 ```
-
 
 ### Виртуальное окружение
 
