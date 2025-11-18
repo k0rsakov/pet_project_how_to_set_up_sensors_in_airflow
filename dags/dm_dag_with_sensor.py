@@ -101,7 +101,7 @@ with DAG(
 
     sensor_ods = ExternalTaskSensor(
         task_id="sensor_ods",
-        external_dag_id="ods_dag_0",
+        external_dag_id="ods_dag_users_to_dwh_pg",
         mode="reschedule",
         poke_interval=60,
         timeout=3600,
