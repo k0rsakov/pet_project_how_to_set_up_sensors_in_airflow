@@ -5,7 +5,6 @@ import pendulum
 
 from airflow import DAG
 
-# from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 
