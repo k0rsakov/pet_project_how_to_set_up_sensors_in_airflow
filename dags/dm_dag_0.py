@@ -64,7 +64,7 @@ def load_dm_layer(**context) -> None:
             DATE_TRUNC('day', created_at) = '{context.get("data_interval_start").format("YYYY-MM-DD")}'
         GROUP BY 1;
             
-        DELETE FROM db.ods.ods_user 
+        DELETE FROM db.dm.dm_count_registered_users 
         WHERE created_at IN (SELECT created_at FROM db.stg.stg_count_registered_users);
         
         INSERT INTO db.dm.dm_count_registered_users
