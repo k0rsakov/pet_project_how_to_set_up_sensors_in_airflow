@@ -30,14 +30,14 @@ args = {
 }
 
 
-def load_ods_layer() -> None:
+def load_ods_layer(**context) -> None:
     """
     Пустышка.
 
     @return: Ничего не возвращает.
     """
-    time.sleep(10)
-
+    time.sleep(5)
+    logging.info(f"🗓️ Загрузка за {context.get('data_interval_start')}")
     logging.info("ODS layer loaded success ✅.")
 
 
