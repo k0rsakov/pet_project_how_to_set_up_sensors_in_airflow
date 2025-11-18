@@ -62,7 +62,8 @@ def load_ods_layer(**context) -> None:
 
     df = pd.DataFrame(list_of_dict)
 
-    logging.info(f"💰 Размер данных: {df.shape}")
+    logging.info(f"💿 Размер данных: {df.shape}")
+    logging.info(f"🗓️ Загрузка за {context.get('data_interval_start')}")
 
     query = """
         INSTALL postgres;
