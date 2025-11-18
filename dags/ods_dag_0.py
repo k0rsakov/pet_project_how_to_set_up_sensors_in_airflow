@@ -1,7 +1,12 @@
 import logging
 import time
-
+import duckdb
 import pendulum
+import datetime
+import uuid
+from random import randint
+from faker import Faker
+import pandas as pd
 
 from airflow import DAG
 
@@ -24,7 +29,7 @@ SHORT_DESCRIPTION = "SHORT DESCRIPTION"
 # https://github.com/apache/airflow/blob/343d38af380afad2b202838317a47a7b1687f14f/airflow/example_dags/tutorial.py#L39
 args = {
     "owner": OWNER,
-    "start_date": pendulum.datetime(2023, 1, 1, tz="Europe/Moscow"),
+    "start_date": pendulum.datetime(year=2023, month=1, day=1, tz="UTC"),
     "catchup": True,
     "retries": 3,
     "retry_delay": pendulum.duration(hours=1),
@@ -38,6 +43,44 @@ def load_ods_layer(**context) -> None:
     @return: Ничего не возвращает.
     """
     time.sleep(0)
+
+    fake = Faker(locale="ru_RU")
+
+    list_of_dict = []
+    for _ in range(randint(a=1, b=1_000)):
+        dict_ = {
+            "id": uuid.uuid4(),
+            "created_at": fake.date_time_ad(
+                start_datetime=datetime.date(year=2024, month=1, day=1),
+                end_datetime=datetime.date(year=2025, month=1, day=1),
+            ),
+            "first_name": fake.first_name(),
+            "last_name": fake.last_name(),
+            "middle_name": fake.middle_name(),
+            "email": fake.email(),
+        }
+
+        list_of_dict.append(dict_)
+
+    df = pd.DataFrame(list_of_dict)
+
+    logging.info(f"💰 Размер данных: {df.shape}")
+
+    duckdb.sql(
+        """
+        INSTALL postgres;
+        LOAD postgres;
+        
+        ATTACH '' AS postgres_db (TYPE postgres);
+        
+        ATTACH 'dbname=postgres user=postgres host=dwh password=postgres' AS db (TYPE postgres);
+        CREATE SCHEMA IF NOT EXISTS ods;
+        
+         
+        """
+    )
+
+
     logging.info("ODS layer loaded success ✅.")
 
 with DAG(
@@ -56,13 +99,13 @@ with DAG(
         task_id="start",
     )
 
-    print_airflow_context_values = PythonOperator(
-        task_id="print_airflow_context_values",
-        python_callable=print_airflow_context_values,
+    load_ods_layer = PythonOperator(
+        task_id="load_ods_layer",
+        python_callable=load_ods_layer,
     )
 
     end = EmptyOperator(
         task_id="end",
     )
 
-    start >> print_airflow_context_values >> end
+    start >> load_ods_layer >> end
