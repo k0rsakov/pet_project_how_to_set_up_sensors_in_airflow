@@ -13,7 +13,6 @@ END_DATE = pendulum.datetime(year=2025, month=1, day=17, hour=10, minute=0, tz="
 # END_DATE = pendulum.datetime(year=2025, month=11, day=17, hour=10, minute=0, tz="UTC")
 
 
-
 def create_dag_run(logical_date: pendulum.DateTime) -> str:
     """
     Создаёт DAGRun на указанную дату.
