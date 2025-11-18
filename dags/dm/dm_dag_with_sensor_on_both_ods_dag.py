@@ -1,4 +1,5 @@
 import logging
+import time
 
 import pendulum
 
@@ -36,48 +37,6 @@ def load_dm_layer(**context) -> None:
     @param context: Контекст DAG.
     @return: Ничего не возвращает.
     """
-    query = f"""
-        INSTALL postgres;
-        LOAD postgres;
-        ATTACH 'dbname=postgres user=postgres host=dwh password=postgres' AS db (TYPE postgres);
-
-        CREATE SCHEMA IF NOT EXISTS db.dm;
-        CREATE SCHEMA IF NOT EXISTS db.stg;
-
-        CREATE TABLE IF NOT EXISTS db.dm.dm_count_registered_users
-        (
-            created_at TIMESTAMP PRIMARY KEY,
-            count_registered_users BIGINT
-        );
-        
-        DROP TABLE IF EXISTS db.stg.stg_count_registered_users;
-        
-        CREATE TABLE db.stg.stg_count_registered_users AS
-        SELECT
-            DATE_TRUNC('day', created_at) AS created_at,
-            COUNT(id) AS count_registered_users
-        FROM
-            db.ods.ods_user
-        WHERE
-            DATE_TRUNC('day', created_at) = '{context.get("data_interval_start").format("YYYY-MM-DD")}'
-        GROUP BY 1;
-            
-        DELETE FROM db.dm.dm_count_registered_users 
-        WHERE created_at IN (SELECT created_at FROM db.stg.stg_count_registered_users);
-        
-        INSERT INTO db.dm.dm_count_registered_users
-        SELECT
-            created_at,
-            count_registered_users
-        FROM
-            db.stg.stg_count_registered_users;
-            
-        DROP TABLE db.stg.stg_count_registered_users;
-        """
-
-    logging.info("Loading DM layer... ⏳ with query:\n%s", query)
-
-    duckdb.sql(query=query)
 
     logging.info("DM layer loaded success ✅.")
 
@@ -97,9 +56,17 @@ with DAG(
         task_id="start",
     )
 
-    sensor_ods = ExternalTaskSensor(
-        task_id="sensor_ods",
+    sensor_ods_dag_users_to_dwh_pg = ExternalTaskSensor(
+        task_id="sensor_ods_dag_users_to_dwh_pg",
         external_dag_id="ods_dag_users_to_dwh_pg",
+        mode="reschedule",
+        poke_interval=60,
+        timeout=3600,
+    )
+
+    sensor_ods_dag_without_catchup = ExternalTaskSensor(
+        task_id="sensor_ods_dag_without_catchup",
+        external_dag_id="ods_dag_without_catchup",
         mode="reschedule",
         poke_interval=60,
         timeout=3600,
@@ -114,4 +81,4 @@ with DAG(
         task_id="end",
     )
 
-    start >> sensor_ods >> load_ods_layer >> end
+    start >> sensor_ods_dag_users_to_dwh_pg >> sensor_ods_dag_without_catchup >> load_ods_layer >> end
