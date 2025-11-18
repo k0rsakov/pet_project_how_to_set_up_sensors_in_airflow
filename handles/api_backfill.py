@@ -1,27 +1,22 @@
 import logging
-from typing import List
 
 import pendulum
 import requests
 
-# === НАСТРОЙКИ ===
 BASE_URL = "http://0.0.0.0:8080/api/v1"
 DAG_ID = "ods_dag_without_catchup"
+AUTH = ("airflow", "airflow")  # подставь свои логин/пароль, если другие
 
-# Если включена Basic Auth в Airflow
-AUTH = ("airflow", "airflow")  # подставь свои логин/пароль при необходимости
-
-# Диапазон дат, для которых создаём DAGRun'ы
 START_DATE = pendulum.datetime(2025, 1, 1, 10, 0, tz="UTC")
 END_DATE = pendulum.datetime(2025, 11, 17, 10, 0, tz="UTC")
 
 
 def create_dag_run(logical_date: pendulum.DateTime) -> str:
     """
-    Создаёт DAGRun для DAG_ID на указанную logical_date.
+    Создаёт DAGRun на указанную дату.
     Возвращает dag_run_id.
 
-    ВАЖНО: не использовать префикс 'backfill__', он зарезервирован Airflow.
+    Важно: НЕ использовать префикс backfill__, он зарезервирован Airflow.
     """
     dag_run_id = f"manual_fill__{logical_date.to_iso8601_string()}"
     payload = {
@@ -29,80 +24,45 @@ def create_dag_run(logical_date: pendulum.DateTime) -> str:
         "logical_date": logical_date.to_iso8601_string(),
         "conf": {},
     }
+
     url = f"{BASE_URL}/dags/{DAG_ID}/dagRuns"
+    logging.info("POST %s", url)
+    logging.info("REQUEST JSON: %s", payload)
 
-    logging.info("Создаю DAGRun: %s, logical_date=%s", dag_run_id, payload["logical_date"])
     resp = requests.post(url, auth=AUTH, json=payload, timeout=10)
+    logging.info("STATUS: %s", resp.status_code)
+    logging.info("RESPONSE: %s", resp.text.strip())
 
-    logging.info("POST %s -> %s %s", url, resp.status_code, resp.text.strip())
-
-    # 409 — такой dag_run_id уже существует, считаем это ок
+    # 409 — такой dag_run_id уже есть, считаем нормальным и идём дальше
     if resp.status_code == 409:
-        logging.info("DAGRun %s уже существует, пропускаю создание", dag_run_id)
+        logging.info("DagRun %s уже существует, пропускаю создание", dag_run_id)
         return dag_run_id
 
     resp.raise_for_status()
     return dag_run_id
 
 
-def list_task_instances(dag_run_id: str) -> List[dict]:
+def mark_dag_run_success(dag_run_id: str) -> None:
     """
-    Возвращает список TaskInstance для указанного dag_run_id.
+    Ставит DAGRun в состояние success через PATCH /dagRuns/{dag_run_id}.
     """
-    url = f"{BASE_URL}/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances"
-    resp = requests.get(url, auth=AUTH, timeout=10)
-    logging.info("GET %s -> %s", url, resp.status_code)
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("task_instances", [])
-
-
-def mark_task_success(dag_run_id: str, task_id: str) -> None:
-    """
-    Помечает указанный TaskInstance как success.
-    """
-    url = f"{BASE_URL}/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+    url = f"{BASE_URL}/dags/{DAG_ID}/dagRuns/{dag_run_id}"
     payload = {"state": "success"}
+
+    logging.info("PATCH %s", url)
+    logging.info("REQUEST JSON: %s", payload)
+
     resp = requests.patch(url, auth=AUTH, json=payload, timeout=10)
-    logging.info(
-        "PATCH %s (task_id=%s) -> %s %s",
-        url,
-        task_id,
-        resp.status_code,
-        resp.text.strip(),
-    )
+    logging.info("STATUS: %s", resp.status_code)
+    logging.info("RESPONSE: %s", resp.text.strip())
+
     resp.raise_for_status()
 
 
-def mark_all_tasks_success(dag_run_id: str) -> None:
+def iter_dates(start: pendulum.DateTime, end: pendulum.DateTime):
     """
-    Получает все таски в DAGRun и помечает их success.
-    """
-    tis = list_task_instances(dag_run_id)
-    if not tis:
-        logging.warning("У DAGRun %s нет task instances (пока?).", dag_run_id)
-        return
-
-    for ti in tis:
-        task_id = ti["task_id"]
-        state = ti.get("state")
-        # Если уже success — можно не трогать
-        if state == "success":
-            logging.info("Task %s уже success, пропускаю", task_id)
-            continue
-        mark_task_success(dag_run_id, task_id)
-
-
-def iter_logical_dates(
-    start: pendulum.DateTime,
-    end: pendulum.DateTime,
-    cron_expr: str = "0 10 * * *",
-):
-    """
-    Генератор дат по cron-расписанию между start и end включительно.
-
-    Для простоты здесь шаг = 1 день, т.к. у нас "0 10 * * *".
-    Если хочешь строго по cron, можно использовать pendulum + croniter.
+    Простейший генератор дат: шаг 1 день.
+    У нас cron '0 10 * * *', так что этого достаточно.
     """
     current = start
     while current <= end:
@@ -116,15 +76,17 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
 
-    logging.info("Запускаю API-бэкфилл для DAG: %s", DAG_ID)
+    logging.info("API-бэкфилл для DAG: %s", DAG_ID)
     logging.info("Диапазон: %s — %s", START_DATE, END_DATE)
 
-    for logical_date in iter_logical_dates(START_DATE, END_DATE):
-        logging.info("=== Обработка logical_date=%s ===", logical_date.to_iso8601_string())
-        dag_run_id = create_dag_run(logical_date)
-        mark_all_tasks_success(dag_run_id)
+    for logical_date in iter_dates(START_DATE, END_DATE):
+        iso = logical_date.to_iso8601_string()
+        logging.info("=== logical_date=%s ===", iso)
 
-    logging.info("Готово. Проверяй DAGRuns в UI для DAG %s.", DAG_ID)
+        dag_run_id = create_dag_run(logical_date)
+        mark_dag_run_success(dag_run_id)
+
+    logging.info("Готово. Проверяй DAGRuns в UI.")
 
 
 if __name__ == "__main__":
