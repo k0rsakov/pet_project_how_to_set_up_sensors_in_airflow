@@ -75,8 +75,8 @@ with DAG(
         # soft_fail=True,
     )
 
-    load_ods_layer = PythonOperator(
-        task_id="load_ods_layer",
+    load_dm_layer = PythonOperator(
+        task_id="load_dm_layer",
         python_callable=load_dm_layer,
     )
 
@@ -84,4 +84,4 @@ with DAG(
         task_id="end",
     )
 
-    start >> sensor_ods_dag_users_to_dwh_pg >> sensor_ods_dag_without_catchup >> load_ods_layer >> end
+    start >> sensor_ods_dag_users_to_dwh_pg >> sensor_ods_dag_without_catchup >> load_dm_layer >> end
