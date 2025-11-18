@@ -36,7 +36,7 @@ def create_dag_run(logical_date: pendulum.DateTime) -> str:
     logging.info("RESPONSE: %s", resp.text.strip())
 
     # 409 — такой dag_run_id уже есть, считаем нормальным и идём дальше
-    if resp.status_code == 409: # noqa: PLR2004
+    if resp.status_code == 409:  # noqa: PLR2004
         logging.info("DagRun %s уже существует, пропускаю создание", dag_run_id)
         return dag_run_id
 
