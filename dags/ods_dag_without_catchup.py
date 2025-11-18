@@ -14,7 +14,7 @@ from airflow.operators.python import PythonOperator
 
 # Конфигурация DAG
 OWNER = "i.korsakov"
-DAG_ID = "ods_dag_1"
+DAG_ID = "ods_dag_without_catchup"
 
 LONG_DESCRIPTION = """
 # LONG DESCRIPTION
