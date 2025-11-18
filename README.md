@@ -9,6 +9,21 @@ https://www.notion.so/korsak0v/Data-Engineer-185c62fdf79345eb9da9928356884ea0
 
 ## О проекте
 
+
+```mermaid
+flowchart TD
+    A[Start sensor task] --> T1["Работа сенсора<br/>до timeout (3600 сек)"]
+    T1 -->|Успех до timeout| S[Success]
+
+    T1 -->|Timeout| C{Остались retries?}
+
+    C -->|Да| W["Ждём retry_delay (1 час)"]
+    W --> A
+
+    C -->|Нет| F[Failed]
+```
+
+
 ### Виртуальное окружение
 
 Настройка виртуального окружения:
