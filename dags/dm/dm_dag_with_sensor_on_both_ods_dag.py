@@ -70,6 +70,9 @@ with DAG(
         mode="reschedule",
         poke_interval=60,
         timeout=3600,
+        # poke_interval=5,
+        # timeout=11,
+        # soft_fail=True,
     )
 
     load_ods_layer = PythonOperator(
