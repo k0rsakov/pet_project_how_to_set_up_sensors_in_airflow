@@ -101,8 +101,8 @@ with DAG(
         task_id="start",
     )
 
-    load_ods_layer = PythonOperator(
-        task_id="load_ods_layer",
+    load_dm_layer = PythonOperator(
+        task_id="load_dm_layer",
         python_callable=load_dm_layer,
     )
 
@@ -110,4 +110,4 @@ with DAG(
         task_id="end",
     )
 
-    start >> load_ods_layer >> end
+    start >> load_dm_layer >> end
